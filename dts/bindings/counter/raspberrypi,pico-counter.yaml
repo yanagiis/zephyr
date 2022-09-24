@@ -1,0 +1,15 @@
+# Copyright (c) 2022, Jimmy Ou
+# SPDX-License-Identifier: Apache-2.0
+
+description: Raspberry Pi Pico Counter
+
+compatible: "raspberrypi,pico-counter"
+
+include: base.yaml
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: true

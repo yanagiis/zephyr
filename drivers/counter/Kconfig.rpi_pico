@@ -1,0 +1,12 @@
+# Copyright (c) 2022 Jimmy Ou
+# SPDX-License-Identifier: Apache-2.0
+
+# This config is depends on WDT_RPI_PICO because the timer uses the referencethat
+# that is generated in the Watchdog.
+config COUNTER_RPI_PICO_TIMER
+	default y
+	depends on WDT_RPI_PICO
+	depends on DT_HAS_RASPBERRYPI_PICO_COUNTER_ENABLED
+	select PICOSDK_USE_CLAIM
+	select PICOSDK_USE_TIMER
+	bool "Raspberry Pi Pico Counter Driver based on Timer"

@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-
 #include <zephyr/device.h>
 #include <zephyr/drivers/counter.h>
+#include <zephyr/drivers/watchdog.h>
+#include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
-#define DELAY 2000000
+#define DELAY		 2000000
 #define ALARM_CHANNEL_ID 0
 
 struct counter_alarm_cfg alarm_cfg;
@@ -43,11 +43,13 @@ struct counter_alarm_cfg alarm_cfg;
 #define TIMER DT_NODELABEL(rtcc0)
 #elif defined(CONFIG_COUNTER_GECKO_STIMER)
 #define TIMER DT_NODELABEL(stimer0)
+#elif defined(CONFIG_COUNTER_RPI_PICO_TIMER)
+#define TIMER	 DT_NODELABEL(timer0)
+#define WATCHDOG DT_NODELABEL(wdt0)
 #endif
 
-static void test_counter_interrupt_fn(const struct device *counter_dev,
-				      uint8_t chan_id, uint32_t ticks,
-				      void *user_data)
+static void test_counter_interrupt_fn(const struct device *counter_dev, uint8_t chan_id,
+				      uint32_t ticks, void *user_data)
 {
 	struct counter_alarm_cfg *config = user_data;
 	uint32_t now_ticks;
@@ -71,12 +73,10 @@ static void test_counter_interrupt_fn(const struct device *counter_dev,
 	config->ticks = config->ticks * 2U;
 
 	printk("Set alarm in %u sec (%u ticks)\n",
-	       (uint32_t)(counter_ticks_to_us(counter_dev,
-					   config->ticks) / USEC_PER_SEC),
+	       (uint32_t)(counter_ticks_to_us(counter_dev, config->ticks) / USEC_PER_SEC),
 	       config->ticks);
 
-	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID,
-					user_data);
+	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID, user_data);
 	if (err != 0) {
 		printk("Alarm could not be set\n");
 	}
@@ -86,6 +86,13 @@ int main(void)
 {
 	const struct device *const counter_dev = DEVICE_DT_GET(TIMER);
 	int err;
+
+#if defined(CONFIG_COUNTER_RPI_PICO_TIMER)
+	/* Avoid watchdog triggers */
+	const struct device *const wdt0 = DEVICE_DT_GET(WATCHDOG);
+
+	wdt_disable(wdt0);
+#endif
 
 	printk("Counter alarm sample\n\n");
 
@@ -101,11 +108,9 @@ int main(void)
 	alarm_cfg.callback = test_counter_interrupt_fn;
 	alarm_cfg.user_data = &alarm_cfg;
 
-	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID,
-					&alarm_cfg);
+	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID, &alarm_cfg);
 	printk("Set alarm in %u sec (%u ticks)\n",
-	       (uint32_t)(counter_ticks_to_us(counter_dev,
-					   alarm_cfg.ticks) / USEC_PER_SEC),
+	       (uint32_t)(counter_ticks_to_us(counter_dev, alarm_cfg.ticks) / USEC_PER_SEC),
 	       alarm_cfg.ticks);
 
 	if (-EINVAL == err) {
